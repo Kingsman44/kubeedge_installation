@@ -1,4 +1,4 @@
-LOCAL_IP_ADDRESS=192.168.107.4
+LOCAL_IP_ADDRESS=192.168.107.4 #master node
 
 # Update
 sudo apt-get update

@@ -51,49 +51,39 @@ cp keadm-v1.15.0-linux-amd64/keadm/keadm /usr/local/bin/keadm
 
 kubectl apply -f yaml/device
 
-cat > /etc/cni/net.d/10-containerd-net.conflist <<EOF
-{
-     "cniVersion": "1.0.0",
-     "name": "containerd-net",
-     "plugins": [
-       {
-         "type": "bridge",
-         "bridge": "cni0",
-         "isGateway": true,
-         "ipMasq": true,
-         "promiscMode": true,
-         "ipam": {
-           "type": "host-local",
-           "ranges": [
-             [{
-               "subnet": "10.88.0.0/16"
-             }],
-             [{
-               "subnet": "2001:db8:4860::/64"
-             }]
-           ],
-           "routes": [
-             { "dst": "0.0.0.0/0" },
-             { "dst": "::/0" }
-           ]
-         }
-       },
-       {
-         "type": "portmap",
-         "capabilities": {"portMappings": true}
-       }
-     ]
-    }
-EOF
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
-wget -L https://raw.githubusercontent.com/kubeedge/kubeedge/master/build/tools/certgen.sh
-chmod +x certgen.sh
-bash -x ./certgen.sh genCertAndKey edge
+# install golang
+rm -rf go1.21.1.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.21.1.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz
+chmod +x /usr/local/go/bin
+export PATH=$PATH:/usr/local/go/bin
 
-sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-sudo systemctl restart containerd
+#install kind
+# For AMD64 / x86_64
+[ $(uname -m) = x86_64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+# For ARM64
+[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-arm64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+sudo apt install iptables openssl git make manpages-dev build-essential jq -y
 
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+
+rm -rf kubeedge
+git clone https://github.com/kubeedge/kubeedge.git kubeedge -b release-1.14
+cd kubeedge/hack
+for i in $(ls update*.sh); do
+  bash $i
+done
+for i in $(ls verify*.sh); do
+  bash $i
+done
+
+cd ../..
 
 keadm init --advertise-address="$LOCAL_IP_ADDRESS" --profile version=v1.13.0 --kube-config=/root/.kube/config
 

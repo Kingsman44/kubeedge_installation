@@ -34,43 +34,6 @@ sudo sysctl -w net.ipv4.ip_forward=1
 # init kubeadm
 sudo systemctl restart containerd
 
-mkdir /etc/cni
-
-cat > /etc/cni/net.d/10-containerd-net.conflist <<EOF
-{
-     "cniVersion": "1.0.0",
-     "name": "containerd-net",
-     "plugins": [
-       {
-         "type": "bridge",
-         "bridge": "cni0",
-         "isGateway": true,
-         "ipMasq": true,
-         "promiscMode": true,
-         "ipam": {
-           "type": "host-local",
-           "ranges": [
-             [{
-               "subnet": "10.88.0.0/16"
-             }],
-             [{
-               "subnet": "2001:db8:4860::/64"
-             }]
-           ],
-           "routes": [
-             { "dst": "0.0.0.0/0" },
-             { "dst": "::/0" }
-           ]
-         }
-       },
-       {
-         "type": "portmap",
-         "capabilities": {"portMappings": true}
-       }
-     ]
-    }
-EOF
-
 sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 sudo systemctl restart containerd
 
@@ -87,18 +50,11 @@ wget https://github.com/kubeedge/kubeedge/releases/download/v1.15.0/keadm-v1.15.
 tar -zxvf keadm-v1.15.0-linux-amd64.tar.gz
 cp keadm-v1.15.0-linux-amd64/keadm/keadm /usr/local/bin/keadm
 
-ctr -n k8s.io c rm $(ctr -n k8s.io c ls -q)
-
 sed -i -e "s/ExecStart=\/usr\/bin\/dockerd -H fd:\/\/ --containerd=\/run\/containerd\/containerd.sock/ExecStart=\/usr\/bin\/dockerd -H fd:\/\/ --containerd=\/run\/containerd\/containerd.sock --exec-opt native.cgroupdriver=systemd/g" /usr/lib/systemd/system/docker.service
-
-rm -rf /etc/docker/daemon.json
-mkdir -p /etc/docker
-echo '{
-  "exec-opts": ["native.cgroupdriver=systemd"]
-}' >> /etc/docker/daemon.json
 
 systemctl restart docker
 systemctl daemon-reload
 sudo systemctl restart containerd
+systemctl restart docker
 
 keadm join --cloudcore-ipport=$LOCAL_IP_ADDRESS:10000 --token=$TOKEN --kubeedge-version=v1.13.0 --cgroupdriver=systemd --runtimetype=docker --remote-runtime-endpoint=unix:///var/run/containerd/containerd.sock

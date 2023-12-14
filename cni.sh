@@ -21,7 +21,7 @@
 #
 set -eu -o pipefail
 
-CNI_COMMIT=${1:-$(go list -f "{{.Version}}" -m github.com/containernetworking/plugins)}
+#CNI_COMMIT=${1:-$(go list -f "{{.Version}}" -m github.com/containernetworking/plugins)}
 CNI_DIR=${DESTDIR:=''}/opt/cni
 CNI_CONFIG_DIR=${DESTDIR}/etc/cni/net.d
 : "${CNI_REPO:=https://github.com/containernetworking/plugins.git}"
@@ -35,7 +35,7 @@ fi
 TMPROOT=$(mktemp -d)
 git clone "${CNI_REPO}" "${TMPROOT}"/plugins
 pushd "${TMPROOT}"/plugins
-git checkout "$CNI_COMMIT"
+#git checkout "$CNI_COMMIT"
 ./build_linux.sh
 $SUDO mkdir -p $CNI_DIR
 $SUDO cp -r ./bin $CNI_DIR
